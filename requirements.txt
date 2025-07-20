@@ -1,0 +1,23 @@
+# ─── core stack ─────────────────────
+pandas>=2.2,<3
+numpy>=1.26,<2
+pyarrow>=16,<17
+scikit-learn>=1.5,<2
+joblib>=1.4,<2
+tqdm>=4.66,<5
+pydantic>=2.7,<3
+typer[all]==0.12.5
+click==8.1.8           # compatível com Typer 0.12
+# ─── NLP / embeddings ───────────────
+sentence-transformers>=2.7,<3
+# ─── HPO e tracking (opcional) ──────
+optuna>=3.6,<4
+mlflow>=2.12,<3
+lightgbm>=4.3,<5
+# ─── testes & lint (opcional) ───────
+pytest>=8
+pytest-cov>=5
+flake8>=7
+black>=24
+isort>=5
+bandit>=1.7
