@@ -28,19 +28,20 @@ O **Decision AI Talent Match** aplica técnicas de *Learning‑to‑Rank* e *
 ## Arquitetura de Referência
 
 ```mermaid
-%% C4 Container Diagram
+%% C4 Container Diagram
 flowchart LR
-  %% subgraph ID  [Título]
+  %% ===== Infra =====
   subgraph Cloud_AWS [Cloud AWS]
     LB[ALB / WAF / HTTPS] --> API[FastAPI + Uvicorn]
     API -->|gRPC| Model[MLflow Model Server]
-    Model -->|S3 Storage| FeatureStore[(Parquet + DVC)]
-    API -->|Prometheus Exporter| Metrics[Prometheus]
+    Model -->|S3 Storage| FeatureStore[(Parquet + DVC)]
+    API -->|Prometheus Exporter| Metrics[Prometheus]
     Metrics --> Grafana[Grafana Dashboard]
   end
 
-  Dev[CI/CD (GitHub Actions)] -->|Docker Image| ECR[ECR Registry]
-  Dev -->|IaC (Terraform)| Cloud_AWS
+  %% ===== DevOps =====
+  Dev["CI/CD (GitHub Actions)"] -->|"Docker Image"| ECR["ECR Registry"]
+  Dev -- "IaC (Terraform)" --> Cloud_AWS
 ```
 
 ### Componentes‑chave
