@@ -1,8 +1,6 @@
 # Decision AI Talent Match
 
-Bem-vindo(a)! Meu nome é Yuri e este repositório é o meu trabalho final da pós-tech em machine learning. O objetivo aqui é construir um sistema de recomendação de candidatos para vagas de emprego usando boas práticas de MLOps e segurança.
-
-Abaixo explico de forma bem direta o que fiz, por que fiz e como você pode reproduzir os resultados.
+Bem-vindo(a)! Este repositório é sobre o trabalho final da pós-tech em machine learning engineering. O objetivo aqui é construir um sistema de recomendação de candidatos para vagas de emprego usando boas práticas de MLOps e segurança.
 
 ---
 
