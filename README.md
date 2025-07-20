@@ -40,7 +40,12 @@ $ python -m decision_ai.features.engineer
 ```
 4. **Treinamento**
 ```bash
-$ python -m decision_ai.models.train --model lgbm --trials 30
+$ python -m decision_ai.models.train \
+       --model lgbm \
+       --trials 80 \
+       --timeout 10800 \
+       --calibrate sigmoid \
+       --n_jobs 4
 ```
 5. **Servir localmente**
 ```bash
@@ -49,14 +54,24 @@ $ uvicorn decision_ai.api.main:app --reload
 
 Com esses passos a API ficará acessível em `http://localhost:8000/predict`.
 
+6. **Testar a API**
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: supersecret" \
+  -d @payload.json
+```
+
 ---
 
 ## Decisões de Projeto
+Abaixo resumo as principais escolhas de arquitetura e por que cada uma delas foi adotada.
+- **Features de texto**: optei por usar SBERT (multilingue) e TF-IDF para representar currículos e vagas.
 
-- **Features de texto**: optei por usar SBERT (modelo multilíngue) para extrair contexto dos currículos e TF‑IDF para as descrições de vaga. Testei Word2Vec e modelos do CatBoost, mas o desempenho ficou inferior em AUC.
 - **Modelo**: LightGBM com otimização via Optuna. A matriz de features fica bastante esparsa e o LightGBM lida bem com esse cenário.
 - **Pipeline**: implementei uma versão com Prefect para execução orquestrada e outra sequencial para rodar fácil em qualquer ambiente.
 - **Segurança**: hashes de dados sensíveis antes de salvar, variáveis secretas fora do código e container sem usuário root.
+- **Parâmetros de treino**: `--trials` define quantas buscas o Optuna executa, `--timeout` limita o tempo total, `--calibrate` ajusta as probabilidades e `--n_jobs` usa mais CPUs.
 
 ---
 
