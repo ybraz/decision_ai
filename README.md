@@ -93,7 +93,6 @@ Apresento a seguir as decisões arquiteturais e as respectivas justificativas t�
 
 ---
 
----
 ## Lições Aprendidas e Perspectivas Futuras
 
 Durante o desenvolvimento e a implementação do sistema, diversas lições cruciais foram extraídas, as quais impactaram diretamente as escolhas arquitetônicas e metodológicas.
