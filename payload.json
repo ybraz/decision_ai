@@ -1,6 +1,20 @@
 [
   {
-    "cv_text": "Sou engenheiro de dados com 5 anos de experiência em Python, Spark e pipelines de ETL.",
-    "job_text": "Buscamos engenheiro de dados pleno para trabalhar com modelagem de dados."
+    "cv_text": "Consultor SAP com mais de 8 anos de experiência, especialista em soluções SAP HANA e S/4HANA. Experiência sólida em modelagem de dados avançada com Calculation Views, desenvolvimento de SQLScript para procedures complexas e performance tuning de queries. Participei de múltiplos projetos de implementação e migração para S/4HANA, atuando desde o desenho da solução até o go-live. Liderei a otimização de relatórios críticos, resultando em uma redução de 70% no tempo de processamento. Conhecimento em ABAP, CDS Views e integração com SAP Analytics Cloud (SAC).",
+    "job_text": "Estamos em busca de um Consultor SAP HANA Sênior para se juntar à nossa equipe de Business Intelligence. A principal responsabilidade será desenvolver e manter soluções de dados na plataforma SAP HANA, incluindo modelagem de dados (Calculation Views), otimização de performance (tuning) e criação de lógicas complexas com SQLScript. É necessário ter forte experiência em projetos de implementação ou migração para SAP S/4HANA. Conhecimento em CDS Views e SAP Analytics Cloud (SAC) é um grande diferencial.",
+    "base__tipo_contratacao": "CLT",
+    "profile__nivel_profissional": "Sênior",
+    "profile__nivel_academico": "Pós-graduação / MBA",
+    "job_id": "JOB-551",
+    "base__titulo_vaga": "Consultor SAP HANA Sênior (BI/Analytics)",
+    "profile__local_trabalho": "Híbrido - São Paulo",
+    "profile__principais_atividades": "Modelagem de dados em SAP HANA; Otimização de queries e performance tuning; Desenvolvimento de procedures em SQLScript; Suporte a projetos S/4HANA.",
+    "profile__competencia_tecnicas_e_comportamentais": "Requerido: SAP HANA (modelagem e SQLScript), SAP S/4HANA. Diferencial: CDS Views, SAP Analytics Cloud (SAC). Comportamental: Resolução de problemas, boa comunicação com stakeholders.",
+    "formacao_e_idiomas__nivel_ingles": "Avançado",
+    "applicant_id": "APP-789",
+    "informacoes_profissionais__titulo_profissional": "Consultor SAP HANA Sênior",
+    "informacoes_profissionais__area_atuacao": "Tecnologia / ERP",
+    "informacoes_profissionais__remuneracao": "12000",
+    "informacoes_pessoais__pcd": "Não"
   }
 ]
