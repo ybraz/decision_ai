@@ -6,9 +6,7 @@ Bem-vindo(a)! Este repositório é sobre o trabalho final da pós-tech em machin
 
 ## Visão Geral
 
-O projeto recebe três arquivos JSON (`applicants.json`, `vagas.json` e `prospects.json`) com dados de candidatos, vagas e resultados de processos seletivos. Depois da ingestão, geramos features de texto com SBERT e TF‑IDF e, por fim, treinamos um classificador LightGBM para ranquear os candidatos conforme a probabilidade de contratação.
-
-Como entregável principal desenvolvi uma API REST em Python (FastAPI) que expõe um endpoint `/predict`. Assim é possível consultar a probabilidade de um candidato se adequar à vaga em tempo real. Toda a infraestrutura foi pensada para rodar em containers e seguir o fluxo de CI/CD no GitHub Actions.
+O projeto ingere dados de currículos e descrições de vagas para, em seguida, aplicar um **Cross-Encoder baseado em Transformer** que avalia diretamente o **grau de similaridade semântica** entre pares (CV, vaga). Utiliza-se o modelo `cross-encoder/ms-marco-MiniLM-L-6-v2` (Reimers & Gurevych, 2020), pré-treinado em tarefas de recuperação de informação sobre o corpus MS MARCO (Nguyen et al., 2016). Essa abordagem unificada dispensa a extração explícita de features estruturais e aproveita o poder contextual do Transformer para gerar scores contínuos em [0,1].
 
 ---
 
@@ -92,8 +90,8 @@ Apresento a seguir as decisões arquiteturais e as respectivas justificativas t�
     * **TF-IDF (Term Frequency-Inverse Document Frequency):** Utilizado para capturar a importância de termos específicos dentro dos documentos. Essa representação esparsa é particularmente eficaz para identificar palavras-chave distintivas, complementando a representação densa do SBERT.
 
 * **Modelo Preditivo:**
-    * **LightGBM (Light Gradient Boosting Machine):** Escolhido como o algoritmo principal devido à sua comprovada eficiência e desempenho em conjuntos de dados com alta dimensionalidade e esparsidade. Sua arquitetura otimizada permite um treinamento rápido e escalável, tornando-o ideal para lidar com a matriz de características gerada pelas representações textuais.
-    * **Otimização de Hiperparâmetros via Optuna:** A ferramenta Optuna foi integrada para a otimização automática dos hiperparâmetros do LightGBM. Essa abordagem bayesiana explora o espaço de busca de forma eficiente, resultando em modelos com performance preditiva superior e reduzindo a necessidade de ajustes manuais.
+    * **Cross-Encoder Transformer:** Adotado por sua capacidade de capturar **interações bidirecionais** entre tokens de texto de CV e de vaga, superando abordagens dual-encoder quando a granularidade semântica é crítica (Reimers & Gurevych, 2020). O modelo `ms-marco-MiniLM-L-6-v2` foi escolhido por seu **trade‑off** entre precisão e eficiência computacional, apresentando alto desempenho em tarefas de similaridade/recuperação.<br/>
+    * **Inferência por escore contínuo:** O Cross-Encoder retorna logits convertidos em probabilidades via **sigmoid**, permitindo ajustar o ponto de corte (`threshold`) conforme critérios de negócio de recall vs. precisão.
 
 * **Orquestração e Execução do Pipeline:**
     * **Pipeline Orquestrado com Prefect:** Uma versão do pipeline foi desenvolvida utilizando **Prefect** para orquestração de fluxos de trabalho. Esta escolha garante robustez, monitoramento em tempo real, tratamento de falhas e reexecução de tarefas, otimizando a governança e a confiabilidade das operações do sistema.
