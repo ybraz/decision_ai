@@ -145,3 +145,6 @@ def test_ingestor_full_pipeline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     # referential integrity
     assert fact.loc[0, "applicant_id"] == 42
     assert fact.loc[0, "job_id"] == 777
+
+    # column naming convention for job profile fields
+    assert "profile__nivel_profissional" in dim_job.columns

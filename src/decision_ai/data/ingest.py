@@ -93,8 +93,8 @@ class Ingestor:
             record = {"job_id": int(job_id)}
             for k, v in info.items():
                 record[f"informacoes_basicas__{k}"] = v
-            for k, v in perfil.items():
-                record[f"perfil__{k}"] = v
+        for k, v in perfil.items():
+            record[f"profile__{k}"] = v
             records.append(record)
         df = pd.DataFrame(records)
         self._save_parquet(df, "dim_job.parquet")
