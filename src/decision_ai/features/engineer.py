@@ -218,6 +218,13 @@ class FeatureEngineer:
         ]
         num_default = ["informacoes_profissionais__remuneracao"]
 
+        # Validate that we actually have some text data to vectorize
+        for text_col in ["job_text", "cv_text"]:
+            if text_col in df.columns and df[text_col].astype(str).str.strip().eq("").all():
+                raise ValueError(
+                    f"Coluna {text_col} vazia: verifique se os dados foram ingeridos corretamente"
+                )
+
         cat_cols = [c for c in cat_default if c in df.columns]
         num_cols = [c for c in num_default if c in df.columns]
 
