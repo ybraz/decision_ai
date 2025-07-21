@@ -1,7 +1,12 @@
-"""Decision AI — Feature Engineering Pipeline (SBERT + TF‑IDF)
+"""Decision AI — Feature Engineering Pipeline
+=============================================
 
-Transforms the curated Parquet tables (`dim_applicant`, `dim_job`, `fact_prospect`)
-into numerical feature matrices ready for model training.
+Este módulo converte as tabelas processadas (`dim_applicant`, `dim_job`,
+`fact_prospect`) em matrizes numéricas adequadas para aprendizado de máquina. A
+estratégia combina **SBERT** para representar currículos, **TF‑IDF** para a
+descrição das vagas e features categóricas/numéricas complementares. O resultado
+é um `scikit-learn Pipeline` persistido juntamente com as matrizes ``X`` e
+``y`` para uso nos módulos de treinamento.
 
 Usage (CLI):
     $ python -m decision_ai.features.engineer

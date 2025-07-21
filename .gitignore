@@ -224,3 +224,6 @@ Thumbs.db
 *.tmp
 *.temp
 *~
+# include data ingestion and model packages
+!src/decision_ai/data/
+!src/decision_ai/models/
