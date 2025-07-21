@@ -13,6 +13,15 @@ Usage (CLI):
     # opções avançadas:
     $ python -m decision_ai.features.engineer --tfidf-dim 3000 --svd-dim 512
 """
+
+"""
+Feature Engineering Pipeline for Decision AI.
+
+This module transforms processed tables (`dim_applicant`, `dim_job`, `fact_prospect`)
+into numerical feature matrices suitable for machine learning. It integrates
+SBERT embeddings for CVs, TF-IDF for job descriptions, and one-hot plus
+numerical passthrough features, composed into a scikit-learn `Pipeline`.
+"""
 from __future__ import annotations
 
 import logging
@@ -53,6 +62,14 @@ SEED = 42
 
 # ───────────────────────────────── helpers ────────────────────────────────
 def _load_tables() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Load processed Parquet tables.
+
+    Returns
+    -------
+    Tuple[pandas.DataFrame, pandas.DataFrame, pandas.DataFrame]
+        Tuple containing (dim_applicant, dim_job, fact_prospect) DataFrames.
+    """
     dim_app = pd.read_parquet(DATA_DIR / "dim_applicant.parquet")
     dim_job = pd.read_parquet(DATA_DIR / "dim_job.parquet")
     fact = pd.read_parquet(DATA_DIR / "fact_prospect.parquet")
@@ -60,19 +77,70 @@ def _load_tables() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
 
 def _status_to_label(status: str) -> int:
+    """
+    Convert prospect status to binary label.
+
+    Parameters
+    ----------
+    status : str
+        Status string from fact_prospect, e.g., "Contratado".
+
+    Returns
+    -------
+    int
+        1 if status contains "Contratado", otherwise 0.
+    """
     return 1 if "Contratado" in status else 0
 
 
 # ───────────────────────── SBERT wrapper (sklearn) ────────────────────────
 class SBERTEncoder:
+    """
+    SBERT encoder wrapper for integration in scikit-learn pipelines.
+
+    Attributes
+    ----------
+    model_name : str
+        Name of the SBERT model to load.
+    _model : SentenceTransformer | None
+        Lazy-loaded SentenceTransformer instance.
+    """
     def __init__(self, model_name: str = MODEL_NAME):
         self.model_name = model_name
         self._model: SentenceTransformer | None = None
 
     def fit(self, X: pd.Series, y=None):  # noqa: N802
+        """
+        No-op fit method to comply with scikit-learn API.
+
+        Parameters
+        ----------
+        X : pandas.Series
+            Input data (ignored).
+        y : any, optional
+            Target labels (ignored).
+
+        Returns
+        -------
+        SBERTEncoder
+            Self.
+        """
         return self  # no‑op
 
     def transform(self, X: pd.Series):  # noqa: N802
+        """
+        Compute SBERT embeddings for a series of texts.
+
+        Parameters
+        ----------
+        X : pandas.Series
+            Series of input texts to encode.
+
+        Returns
+        -------
+        numpy.ndarray
+            2D array of normalized SBERT embeddings.
+        """
         if self._model is None:
             logger.info("Loading SBERT model “%s”…", self.model_name)
             self._model = SentenceTransformer(self.model_name)
@@ -93,9 +161,35 @@ class SBERTEncoder:
 
     # compatibility with GridSearch
     def get_params(self, deep: bool = False):
+        """
+        Get parameters for grid search compatibility.
+
+        Parameters
+        ----------
+        deep : bool, optional
+            Ignored. Included to match scikit-learn signature.
+
+        Returns
+        -------
+        dict
+            Dictionary with key "model_name".
+        """
         return {"model_name": self.model_name}
 
     def set_params(self, **params):
+        """
+        Set parameters for grid search compatibility.
+
+        Parameters
+        ----------
+        **params : dict
+            Parameters to set on the encoder.
+
+        Returns
+        -------
+        SBERTEncoder
+            Self.
+        """
         for k, v in params.items():
             setattr(self, k, v)
         return self
@@ -108,6 +202,25 @@ def build_pipeline(
     cat_cols: Optional[list[str]] = None,
     num_cols: Optional[list[str]] = None,
 ) -> Pipeline:
+    """
+    Create a scikit-learn feature engineering pipeline.
+
+    Parameters
+    ----------
+    tfidf_dim : int, optional
+        Maximum vocabulary size for TF-IDF (default: 2000).
+    svd_dim : int or None, optional
+        Number of components for TruncatedSVD (None to disable).
+    cat_cols : list of str, optional
+        List of categorical column names.
+    num_cols : list of str, optional
+        List of numerical column names.
+
+    Returns
+    -------
+    sklearn.pipeline.Pipeline
+        Configured pipeline combining text, embedding, categorical, and numeric features.
+    """
     if cat_cols is None:
         cat_cols = [
             "base__tipo_contratacao",
@@ -147,11 +260,38 @@ def build_pipeline(
 
 # ───────────────────────── FeatureEngineer class ─────────────────────────
 class FeatureEngineer:
+    """
+    Orchestrates building feature matrices from processed DataFrames.
+
+    Attributes
+    ----------
+    out_dir : pathlib.Path
+        Directory to save feature artifacts.
+    pipeline : sklearn.pipeline.Pipeline or None
+        Fitted pipeline after transformation.
+    """
     def __init__(self, out_dir: Path = FEAT_DIR):
+        """
+        Initialize FeatureEngineer.
+
+        Parameters
+        ----------
+        out_dir : pathlib.Path, optional
+            Directory where feature artifacts will be stored.
+        """
         self.out_dir = out_dir
         self.pipeline: Pipeline | None = None
 
     def build_dataframe(self) -> pd.DataFrame:
+        """
+        Load and merge processed tables into a single DataFrame with text columns.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Merged DataFrame ready for feature extraction, including 'cv_text',
+            'job_text', and binary 'label'.
+        """
         logger.info("Carregando tabelas processadas…")
         dim_app, dim_job, fact = _load_tables()
         
@@ -234,6 +374,24 @@ class FeatureEngineer:
         return df
 
     def fit_transform(self, df: pd.DataFrame, tfidf_dim=2000, svd_dim: Optional[int] = 256):
+        """
+        Fit the feature pipeline and transform the DataFrame into feature matrix.
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            DataFrame with merged features and text columns.
+        tfidf_dim : int, optional
+            Maximum TF-IDF vocabulary size.
+        svd_dim : int or None, optional
+            Number of SVD components.
+
+        Returns
+        -------
+        numpy.ndarray
+            Feature matrix including TF-IDF, SBERT embeddings, categorical,
+            numeric features, and cosine similarity.
+        """
         # Determine which categorical and numerical columns actually exist
         cat_default = [
             "base__tipo_contratacao",
@@ -266,9 +424,31 @@ class FeatureEngineer:
         )
         logger.info("Ajustando pipeline de features…")
         X = self.pipeline.fit_transform(df)
+        # feature de similaridade de cosseno entre cv_text e job_text
+        sbert = SBERTEncoder()
+        cv_emb = sbert.transform(df['cv_text'])
+        job_emb = sbert.transform(df['job_text'])
+        # normaliza embeddings
+        cv_norm = cv_emb / np.linalg.norm(cv_emb, axis=1, keepdims=True)
+        job_norm = job_emb / np.linalg.norm(job_emb, axis=1, keepdims=True)
+        sim = np.sum(cv_norm * job_norm, axis=1).reshape(-1, 1)
+        # anexa a feature de similaridade
+        X = np.hstack([X, sim])
         return X
 
     def save(self, X: np.ndarray, y: np.ndarray, df_text: pd.DataFrame | None = None):
+        """
+        Save feature matrices and artifacts to disk with timestamp.
+
+        Parameters
+        ----------
+        X : numpy.ndarray
+            Feature matrix.
+        y : numpy.ndarray
+            Target labels array.
+        df_text : pandas.DataFrame or None, optional
+            Optional DataFrame of text columns to export.
+        """
         ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
         joblib.dump(X, self.out_dir / f"X_{ts}.joblib")
         joblib.dump(y, self.out_dir / f"y_{ts}.joblib")
@@ -286,7 +466,18 @@ class FeatureEngineer:
         svd_dim: Optional[int] = 256,
         export_text: bool = False,
     ):
-        """Build dataframe, generate features and save artefacts."""
+        """
+        Execute end-to-end feature engineering and save outputs.
+
+        Parameters
+        ----------
+        tfidf_dim : int, optional
+            Maximum TF-IDF vocabulary size.
+        svd_dim : int or None, optional
+            Number of SVD components.
+        export_text : bool, optional
+            Whether to save the text DataFrame for downstream use.
+        """
         logger.info("Iniciando engenharia de features…")
         fe = FeatureEngineer()
         df = fe.build_dataframe()
@@ -300,7 +491,14 @@ class FeatureEngineer:
 # ---------------------------------------------------------------------------
 
 def _parse_args():
-    """Parse command‑line arguments for the feature engineering pipeline."""
+    """
+    Parse command-line arguments for feature engineering.
+
+    Returns
+    -------
+    argparse.Namespace
+        Parsed arguments with attributes tfidf_dim, svd_dim, and export_text.
+    """
     import argparse
 
     parser = argparse.ArgumentParser(
@@ -328,6 +526,11 @@ def _parse_args():
 
 
 def main() -> None:  # pragma: no cover
+    """
+    CLI entry point for feature engineering.
+
+    Parses arguments and invokes FeatureEngineer.run().
+    """
     args = _parse_args()
     svd = args.svd_dim if args.svd_dim > 0 else None
     FeatureEngineer.run(

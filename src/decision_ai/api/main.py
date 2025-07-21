@@ -17,6 +17,12 @@ Segurança
 * Carrega artefatos na inicialização (singleton).
 """
 
+"""
+NumPy-style Docstrings
+----------------------
+Module for the Decision AI REST API, serving prediction endpoints with API key authentication.
+"""
+
 from __future__ import annotations
 
 import os
@@ -52,6 +58,14 @@ app = FastAPI(
 # Lazy loading of sklearn pipeline and model
 @lru_cache(maxsize=1)
 def _get_artifacts():
+    """
+    Lazy-load model and preprocessing pipeline artifacts.
+
+    Returns
+    -------
+    Tuple[object, object]
+        Loaded trained model and fitted preprocessing pipeline.
+    """
     return load_latest_artifacts()
 
 
@@ -87,6 +101,19 @@ class PredictionOut(BaseModel):
 
 
 def require_api_key(request: Request):
+    """
+    Dependency to enforce API key authentication.
+
+    Parameters
+    ----------
+    request : fastapi.Request
+        Incoming HTTP request object.
+
+    Raises
+    ------
+    HTTPException
+        If the X-API-Key header is missing or invalid.
+    """
     key = request.headers.get("X-API-Key")
     if key != API_KEY:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
@@ -104,6 +131,24 @@ def require_api_key(request: Request):
     dependencies=[Depends(require_api_key)],
 )
 def predict_endpoint(payload: List[ApplicantIn]):
+    """
+    HTTP POST endpoint to classify a list of applicants.
+
+    Parameters
+    ----------
+    payload : List[ApplicantIn]
+        List of applicant data objects parsed from the request body.
+
+    Returns
+    -------
+    List[PredictionOut]
+        List of prediction results containing probability and binary label.
+
+    Raises
+    ------
+    HTTPException
+        If the payload is empty or an internal error occurs.
+    """
     if not payload:
         raise HTTPException(status_code=400, detail="Empty payload")
     df = pd.DataFrame(
@@ -124,6 +169,14 @@ def predict_endpoint(payload: List[ApplicantIn]):
 
 @app.get("/healthz", summary="Liveness probe")
 def health():
+    """
+    Health check endpoint for liveness probe.
+
+    Returns
+    -------
+    dict
+        Dictionary with service status and model load flag.
+    """
     return {"status": "ok", "model_loaded": _get_artifacts.cache_info().hits > 0}
 
 
@@ -134,6 +187,21 @@ def health():
 
 @app.exception_handler(Exception)
 def global_exception_handler(request: Request, exc: Exception):
+    """
+    Global exception handler to catch unhandled exceptions.
+
+    Parameters
+    ----------
+    request : fastapi.Request
+        The request during which the exception occurred.
+    exc : Exception
+        The exception that was raised.
+
+    Returns
+    -------
+    JSONResponse
+        JSON response with HTTP 500 status and error detail.
+    """
     return JSONResponse(
         status_code=500,
         content={"detail": f"Internal Error: {type(exc).__name__}"},

@@ -1,148 +1,120 @@
 # Decision AI Talent Match
 
-Bem-vindo(a)! Este repositório é sobre o trabalho final da pós-tech em machine learning engineering. O objetivo aqui é construir um sistema de recomendação de candidatos para vagas de emprego usando boas práticas de MLOps e segurança.
+**Abstract**  
+Este documento apresenta o projeto Decision AI Talent Match, desenvolvido como trabalho final do curso de Machine Learning Engineering. A solução integra pipelines de ingestão, engenharia de features, treinamento, avaliação e API REST para predição de candidatos, adotando boas práticas de MLOps, segurança de dados e metodologias acadêmicas de avaliação de desempenho.
 
----
+## 1. Introdução
+O recrutamento de talentos é um processo crítico e complexo, frequentemente limitado por vieses humanos e pela dificuldade de analisar grandes volumes de currículos. Este projeto propõe uma abordagem híbrida de Processamento de Linguagem Natural (PLN) e Aprendizado de Máquina para ranquear candidatos segundo sua probabilidade de contratação, fornecendo métricas quantificáveis e auditáveis. A arquitetura é projetada para ser reprodutível, escalável e segura.
 
-## Visão Geral
+## 2. Arquitetura do Sistema
+A solução é composta por cinco módulos principais:
+1. **Ingestão de Dados**: leitura e validação de arquivos JSON, normalização de schema e hashing de dados sensíveis.  
+2. **Engenharia de Features**: extração de representações textuais (SBERT, TF‑IDF+SVD), codificação de variáveis estruturadas e cálculo de similaridade semântica.  
+3. **Treinamento de Modelo**: otimização de hiperparâmetros via Optuna, balanceamento de classes e calibração de probabilidades usando ROC-AUC.  
+4. **Avaliação**: geração de métricas (AUC, precisão, recall, F1) e visualizações (curvas ROC e PR).  
+5. **API REST**: serviço web com FastAPI, protegido por API Key, para predição em tempo real.
 
-O projeto ingere dados de currículos e descrições de vagas e gera *features* estruturadas a partir de três fontes:
-1. **Embeddings SBERT** extraídos do texto completo dos currículos;
-2. **TF‑IDF** da descrição das vagas;
-3. Campos categóricos e numéricos provenientes do banco de dados da Decision.
+## 3. Pipeline de Dados
+### 3.1 Ingestão de Dados
+- Utiliza Pydantic para validação de esquema.  
+- Converte JSON de candidatos (`applicants.json`), vagas (`vagas.json`) e interações (`prospects.json`) em tabelas no formato *star schema* (`dim_applicant`, `dim_job`, `fact_prospect`).  
+- Aplica hashing SHA‑256 em colunas sensíveis (telefone, e-mail).  
+- Salva artefatos em Parquet e versiona com DVC para rastreabilidade.
 
-Com essas representações é treinado um classificador **LightGBM**, otimizado via Optuna, capaz de estimar a probabilidade de contratação para cada candidato.
+### 3.2 Engenharia de Features
+- **SBERT Embeddings** nos campos `cv_text` e `job_text`, capturando semântica textual.  
+- **TF‑IDF + TruncatedSVD** para descrição de vagas, reduzindo dimensionalidade e extraindo componentes latentes.  
+- **One-Hot Encoding** para variáveis categóricas (tipo de contratação, senioridade, etc.).  
+- **Feature de Similaridade de Cosseno** entre embeddings de currículo e vaga.  
+- **Passthrough** de atributos numéricos e flags de skills.
 
----
+### 3.3 Treinamento do Modelo
+- Carrega matriz de features `X` e rótulos `y`.  
+- Executa busca de hiperparâmetros com Optuna, otimizando LightGBM e ajustando `scale_pos_weight`.  
+- Realiza calibração de probabilidades usando `CalibratedClassifierCV(method='sigmoid')`.  
+- Persiste modelo final via joblib.
 
-## Como Executar
+### 3.4 Avaliação do Modelo
+- Avalia métricas de classificação: AUC, precisão, recall e F1-score.  
+- Gera curvas ROC e Precision-Recall com matplotlib.  
+- Exporta relatórios e gráficos para diretório selecionado.
 
-1. **Pré-requisitos**
-   - Python 3.11 (uso pyenv, mas qualquer instalação compatível serve)
-   - `virtualenv` ou similar
-   - Docker, caso queira reproduzir a imagem final
+### 3.5 Serviço de Predição (API REST)
+- Endpoints principais:  
+  - `POST /predict`: recebe JSON com `cv_text`, `job_text` e demais features, retorna `proba` e `pred`.  
+  - `GET /healthz`: verifica estado de saúde do serviço.  
+- Autenticação via header `X-API-Key`.  
+- Containerizado com Docker e configurado para CI/CD em GitHub Actions.
 
-2. **Instalação**
-```bash
-# clone o repositório
-$ git clone git@github.com:suporte-ml/decision-ai.git && cd decision-ai
+## 4. Decisões de Projeto
+- **Representação de Texto**: combinação de embeddings densos (SBERT) e vetores esparsos (TF‑IDF+SVD) para robustez semântica e desempenho.  
+- **Modelagem**: LightGBM por sua eficiência e desempenho em dados tabulares, com balanceamento de classes e calibração de probabilidades.  
+- **Otimização de Hiperparâmetros**: Optuna para exploração automática de espaços de busca e maximização de ROC-AUC.  
+- **Rastreabilidade de Artefatos**: uso de DVC para versionamento de datasets e pipelines.  
+- **Segurança de Dados**: hashing de campos sensíveis e validação de esquema para conformidade e privacidade.
 
-# ambiente virtual
-$ python -m venv .venv && source .venv/bin/activate
+## 5. Lições Aprendidas
+1. Validação de dados é crucial para evitar falhas silenciosas em pipelines de produção.  
+2. Hashing de dados sensíveis equilibra privacidade com necessidade de rastreabilidade.  
+3. Pipeline modular facilita manutenção, testes e reuso de componentes.  
+4. Calibração de probabilidades melhora interpretabilidade e confiabilidade do modelo.  
+5. Automação CI/CD reduz erros manuais e acelera entregas.
 
-# dependências de runtime e dev
-$ pip install --upgrade pip
-$ pip install -r requirements.txt
-```
-3. **Ingestão de dados e Engenharia de Features**
-   
-   Os scripts estão localizados em `src/decision_ai/data/ingest.py` e `src/decision_ai/features/engineer.py`. Para executar, use:
-
+## 6. Uso – Passo a Passo
+1. **Clonar repositório e ativar ambiente**  
    ```bash
-   # Executa a etapa de ingestão (geralmente lê raw → processado)
+   git clone git@github.com:ybraz/decision_ai.git
+   cd decision_ai
+   python -m venv .venv && source .venv/bin/activate
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   ```  
+2. **Ingestão de Dados**  
+   ```bash
    python -m decision_ai.data.ingest \
-       --raw-dir src/data/raw \
-       --out-dir data/processed
-
-   # Executa a engenharia de features (TF-IDF + SBERT + pipeline enxuto)
+     --raw-dir src/data/raw \
+     --out-dir data/processed
+   ```  
+3. **Engenharia de Features**  
+   ```bash
    python -m decision_ai.features.engineer \
-       --tfidf-dim 30000 \
-       --svd-dim 512
+     --tfidf-dim 30000 \
+     --svd-dim 512
+   ```  
+4. **Treinamento do Modelo**  
+   ```bash
+   python -m decision_ai.models.train --trials 80
+   ```  
+5. **Avaliação do Modelo**  
+   ```bash
+   python -m decision_ai.models.evaluate --threshold 0.25 --export reports/
+   ```  
+6. **Executar API REST**  
+   ```bash
+   uvicorn decision_ai.api.main:app --reload
+   curl -X POST http://localhost:8000/predict \
+     -H "Content-Type: application/json" \
+     -H "X-API-Key: supersecret" \
+     -d @payload.json
    ```
-   A etapa de engenharia de features procura automaticamente os arquivos
-   processados no diretório `data/processed`.
-4. **Treinamento**
-```bash
-$ python -m decision_ai.models.train --trials 80
-```
 
-5. **Avaliação do Modelo**
-```bash
-# avaliação rápida com threshold padrão (0.50)
-$ python -m decision_ai.models.evaluate
-
-# avaliando com threshold customizado (ex.: 0.25)
-$ python -m decision_ai.models.evaluate --threshold 0.25
-
-# salvando relatórios e gráficos em diretório específico
-$ python -m decision_ai.models.evaluate --threshold 0.25 --export reports/
-```
-
-
-> **Interpretação do *threshold***  
-> A escolha do ponto de corte é agora uma **decisão de negócio**.  
-> * **Mais *recall*** (não perder talentos): use `--threshold 0.25` – o modelo captura ~80 % dos candidatos contratáveis, mas com ~15 % de falsos‑positivos.  
-> * **Menos ruído** para o time de seleção: use `--threshold 0.50` (ou até `0.60`) – quase nenhum falso‑positivo, porém ~30 % dos bons perfis ficam de fora.  
-> Ajuste conforme o trade‑off entre volume de triagem manual e risco de perder bons perfis.
-
-
-6. **Servir localmente**
-```bash
-$ uvicorn decision_ai.api.main:app --reload
-```
-
-Com esses passos a API ficará acessível em `http://localhost:8000/predict`.
-
-7. **Testar a API**
-```bash
-curl -X POST http://localhost:8000/predict \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: supersecret" \
-  -d @payload.json
-```
-
----
-
-## Decisões de Projeto
-
-Apresento a seguir as decisões arquiteturais e as respectivas justificativas técnicas para o desenvolvimento do sistema.
-
-* **Representação de Texto:** Para a vetorização de currículos e descrições de vagas, foram empregadas duas abordagens complementares:
-    * **SBERT (Sentence-BERT) Multilíngue:** Selecionado por sua capacidade de gerar embeddings densos e semanticamente ricos, essenciais para capturar nuances contextuais em múltiplos idiomas, o que otimiza a correspondência entre documentos textuais.
-    * **TF-IDF (Term Frequency-Inverse Document Frequency):** Utilizado para capturar a importância de termos específicos dentro dos documentos. Essa representação esparsa é particularmente eficaz para identificar palavras-chave distintivas, complementando a representação densa do SBERT.
-
-* **Modelo Preditivo:**
-    * **LightGBM (Light Gradient Boosting Machine):** escolhido por lidar bem com alta dimensionalidade e esparsidade, além de permitir treinamento rápido.
-    * **Otimização de Hiperparâmetros via Optuna:** garante melhor desempenho ao explorar automaticamente o espaço de configurações do LightGBM.
-
-* **Orquestração e Execução do Pipeline:**
-    * **Pipeline Orquestrado com Prefect:** Uma versão do pipeline foi desenvolvida utilizando **Prefect** para orquestração de fluxos de trabalho. Esta escolha garante robustez, monitoramento em tempo real, tratamento de falhas e reexecução de tarefas, otimizando a governança e a confiabilidade das operações do sistema.
-    * **Pipeline Sequencial:** Adicionalmente, uma implementação sequencial foi providenciada para ambientes com menor complexidade de infraestrutura, permitindo a execução facilitada em diversos cenários sem a necessidade de uma orquestração dedicada.
-
-* **Segurança da Informação:** As seguintes medidas foram implementadas para garantir a integridade e confidencialidade dos dados:
-    * **Hashing de Dados Sensíveis:** Antes do armazenamento, os dados sensíveis são submetidos a algoritmos de hashing, protegendo as informações contra acessos não autorizadas e vazamentos.
-    * **Gestão de Variáveis Secretas:** Variáveis e credenciais secretas são armazenadas externamente ao código-fonte, utilizando práticas recomendadas de segurança para evitar exposição e facilitar a gestão.
-    * **Execução em Contêiner sem Usuário Root:** Os contêineres de execução são configurados para operar com privilégios mínimos (sem usuário root), reduzindo a superfície de ataque e mitigando riscos de segurança.
-
-* **Parâmetros de Treinamento e Otimização:**
-    * `--trials`: quantidade de iterações que o Optuna executará para buscar os melhores hiperparâmetros do LightGBM.
-    * `--threshold`: ponto de corte utilizado na etapa de avaliação para transformar probabilidades em classes.
-
----
-
-## Lições Aprendidas e Perspectivas Futuras
-
-Durante o desenvolvimento e a implementação do sistema, diversas lições cruciais foram extraídas, as quais impactaram diretamente as escolhas arquitetônicas e metodológicas.
-
-* **Validação de Dados Robustas:** A importância da **validação de dados** tornou-se evidente ao longo do projeto. Erros sutis ou inconsistências nos arquivos JSON de entrada frequentemente causavam interrupções inesperadas em todo o fluxo de processamento. Para mitigar esse problema, foi implementada uma validação rigorosa utilizando **esquemas Pydantic** abrangentes. Essa abordagem permitiu não apenas a detecção precoce de irregularidades, mas também garantiu a integridade e a conformidade dos dados, otimizando a confiabilidade do pipeline.
-
-* **Desafios da Esparsidade em Dados Textuais:** A **esparsidade intrínseca dos dados textuais** representou um desafio significativo na fase de representação e modelagem. Embora a aplicação da **Decomposição por Valores Singulares (SVD)** tenha sido eficaz na redução da dimensionalidade e na captura de padrões latentes, ainda se observa uma margem considerável para aprimoramento. Futuras investigações podem explorar técnicas mais avançadas de embedding e representação de texto para otimizar a densidade e a expressividade das características, potencializando o desempenho do modelo em cenários com alta esparsidade.
-
-* **Benefícios da Automatização via CI/CD:** A adoção de um pipeline de **Integração Contínua e Entrega Contínua (CI/CD)** foi fundamental para a eficiência do processo de desenvolvimento. Essa automatização simplificou drasticamente a execução de testes, a verificação de código e a geração de imagens Docker reprodutíveis. Além disso, a experiência adquirida na gestão de **falhas de dependência** e na garantia da **reprodutibilidade dos builds** solidificou as práticas de engenharia de software, contribuindo para um ciclo de desenvolvimento mais ágil e confiável.
-
-* **Avaliação Abrangente do Modelo com Métricas Adequadas:** No contexto de um conjunto de dados **desbalanceado**, o acompanhamento conjunto das métricas **ROC-AUC (Receiver Operating Characteristic - Area Under the Curve)** e **PR-AUC (Precision-Recall - Area Under the Curve)** revelou-se indispensável. Enquanto a ROC-AUC forneceu uma visão geral do poder discriminatório do modelo, a PR-AUC ofereceu uma perspectiva mais realista do seu comportamento em classes minoritárias, sendo crucial para entender o desempenho em cenários onde a precisão e o *recall* da classe positiva são críticos. Essa abordagem multifacetada garantiu uma avaliação mais precisa e um entendimento aprofundado do desempenho do modelo.
-
----
-
-## Estrutura do Repositório
-```
+## 7. Estrutura do Repositório
+```text
 decision_ai/
-├── data/           # dados brutos e processados
-├── src/decision_ai # código fonte principal
-├── tests/          # unitários e integração
-└── .github/        # fluxos de CI/CD
+├── data/                   # Dados brutos e processados (DVC)
+├── src/decision_ai/        # Código-fonte
+│   ├── api/                # FastAPI endpoints
+│   ├── data/               # Scripts de ingestão
+│   ├── features/           # Engenharia de features
+│   └── models/             # Treinamento, avaliação e predição
+├── tests/                  # Testes unitários e de integração
+└── .github/                # Configuração de CI/CD
 ```
 
----
-
-Espero que este README facilite a avaliação do projeto. Qualquer dúvida ou sugestão estou à disposição!
+## 8. Referências
+- Wu, Y. et al. (2019). **Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks**.  
+- Ke, G. et al. (2017). **LightGBM: A Highly Efficient Gradient Boosting Decision Tree**.  
+- Akiba, T. et al. (2019). **Optuna: A Next-generation Hyperparameter Optimization Framework**.  
+- Niculescu-Mizil, A. & Caruana, R. (2005). **Predicting Good Probabilities with Supervised Learning**.  
+- OWASP Foundation. **OWASP Secure Software Development Framework (SSDF)**.  
+- DVC. **Data Version Control** Documentation.  

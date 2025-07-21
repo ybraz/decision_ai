@@ -1,3 +1,9 @@
+"""
+Module `decision_ai.data.ingest`.
+
+Provides functionality to ingest raw JSON input files (applicants, vagas, prospects)
+and convert them into structured Parquet tables, versioned with DVC.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -19,21 +25,70 @@ logger.addHandler(handler)
 
 
 def _sha256(value: str | None) -> str | None:
-    """Return SHA-256 hex digest for non-empty strings."""
+    """
+    Compute SHA-256 hash of the input string if provided.
+
+    Parameters
+    ----------
+    value : str | None
+        Input string to hash. If None or empty, returns None.
+
+    Returns
+    -------
+    str | None
+        Hexadecimal SHA-256 digest of the input string, or None if input is None or empty.
+    """
     if not value:
         return None
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 class Ingestor:
-    """Handle conversion from raw JSON files to Parquet tables."""
+    """
+    Ingestor for converting raw JSON data files into Parquet tables and tracking them with DVC.
+
+    Attributes
+    ----------
+    raw_dir : pathlib.Path
+        Directory containing raw JSON input files.
+    out_dir : pathlib.Path
+        Directory where processed Parquet files will be saved.
+    """
 
     def __init__(self, raw_dir: Path, out_dir: Path) -> None:
+        """
+        Initialize Ingestor.
+
+        Parameters
+        ----------
+        raw_dir : pathlib.Path
+            Path to directory with raw JSON files.
+        out_dir : pathlib.Path
+            Path to directory for output Parquet files.
+        """
         self.raw_dir = Path(raw_dir)
         self.out_dir = Path(out_dir)
 
     # ------------------------------------------------------------------
     def _load_json(self, name: str) -> Dict[str, Any]:
+        """
+        Load and parse a JSON file from the raw directory.
+
+        Parameters
+        ----------
+        name : str
+            Filename of the JSON file to load (e.g., 'applicants.json').
+
+        Returns
+        -------
+        Dict[str, Any]
+            Parsed JSON content as a dictionary.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the specified file does not exist in `raw_dir`.
+        """
         path = self.raw_dir / name
         if not path.exists():
             raise FileNotFoundError(path)
@@ -43,6 +98,20 @@ class Ingestor:
         return data
 
     def _save_parquet(self, df: pd.DataFrame, name: str) -> None:
+        """
+        Save a DataFrame as a Parquet file and track it with DVC.
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            DataFrame to be saved.
+        name : str
+            Output filename (e.g., 'dim_applicant.parquet').
+
+        Returns
+        -------
+        None
+        """
         self.out_dir.mkdir(parents=True, exist_ok=True)
         path = self.out_dir / name
         df.to_parquet(path, index=False)
@@ -54,6 +123,13 @@ class Ingestor:
 
     # ------------------------------------------------------------------
     def run(self) -> None:
+        """
+        Run the ingestion pipeline: load JSON files and process applicants, jobs, and prospects.
+
+        Returns
+        -------
+        None
+        """
         logger.info("Iniciando ingestão de dados…")
         apps = self._load_json("applicants.json")
         jobs = self._load_json("vagas.json")
@@ -65,6 +141,18 @@ class Ingestor:
 
     # ------------------------------------------------------------------
     def _process_applicants(self, data: Dict[str, Any]) -> None:
+        """
+        Process applicants JSON data into a dimension table.
+
+        Parameters
+        ----------
+        data : Dict[str, Any]
+            Raw applicants data keyed by applicant ID.
+
+        Returns
+        -------
+        None
+        """
         logger.info("Processando candidatos…")
         records = []
         for app_id, sections in data.items():
@@ -85,6 +173,18 @@ class Ingestor:
         self._save_parquet(df, "dim_applicant.parquet")
 
     def _process_jobs(self, data: Dict[str, Any]) -> None:
+        """
+        Process jobs JSON data into a dimension table.
+
+        Parameters
+        ----------
+        data : Dict[str, Any]
+            Raw jobs data keyed by job ID.
+
+        Returns
+        -------
+        None
+        """
         logger.info("Processando vagas…")
         records = []
         for job_id, obj in data.items():
@@ -100,6 +200,18 @@ class Ingestor:
         self._save_parquet(df, "dim_job.parquet")
 
     def _process_prospects(self, data: Dict[str, Any]) -> None:
+        """
+        Process prospects JSON data into a fact table.
+
+        Parameters
+        ----------
+        data : Dict[str, Any]
+            Raw prospects data keyed by job ID.
+
+        Returns
+        -------
+        None
+        """
         logger.info("Processando prospects…")
         records = []
         for job_id, obj in data.items():
@@ -115,6 +227,15 @@ class Ingestor:
 
 
 def main() -> None:  # pragma: no cover
+    """
+    Command-line interface for the data ingestion pipeline.
+
+    Parses arguments and invokes the Ingestor.
+
+    Returns
+    -------
+    None
+    """
     import argparse
 
     parser = argparse.ArgumentParser(description="Run data ingestion pipeline")
