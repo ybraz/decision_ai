@@ -189,11 +189,36 @@ class FeatureEngineer:
             + " "
             + df.get("cv_en", pd.Series("", index=df.index)).fillna("").astype(str)
         )
-        df["job_text"] = (
-            df.get("profile__principais_atividades", pd.Series("", index=df.index)).fillna("").astype(str)
-            + " "
-            + df.get("profile__competencia_tecnicas_e_comportamentais", pd.Series("", index=df.index)).fillna("").astype(str)
-        )
+        job_fields = [
+            "profile__principais_atividades",
+            "profile__competencia_tecnicas_e_comportamentais",
+        ]
+        existing_job_fields = [c for c in job_fields if c in df.columns]
+
+        if not existing_job_fields:
+            alt_options = [
+                "informacoes_basicas__titulo_vaga",
+                "informacoes_basicas__descricao_vaga",
+            ]
+            alt_field = next((c for c in alt_options if c in df.columns), None)
+            if alt_field:
+                logger.warning(
+                    "Nenhuma das colunas %s presente; usando %s como fallback para job_text",
+                    job_fields,
+                    alt_field,
+                )
+                df["job_text"] = df[alt_field].fillna("").astype(str)
+            else:
+                raise ValueError(
+                    "Nenhuma coluna de descricao de vaga encontrada. Esperado pelo menos uma de %s"
+                    % job_fields
+                )
+        else:
+            df["job_text"] = (
+                df.get(job_fields[0], pd.Series("", index=df.index)).fillna("").astype(str)
+                + " "
+                + df.get(job_fields[1], pd.Series("", index=df.index)).fillna("").astype(str)
+            )
 
         # Ensure final text columns are pure strings (no floats)
         df["cv_text"] = df["cv_text"].astype(str)
