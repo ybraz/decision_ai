@@ -23,10 +23,11 @@ import os
 from pathlib import Path
 from typing import List
 
-import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, validator, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
+from sentence_transformers import CrossEncoder
+import math
 
 # ---------------------------------------------------------------------------
 # Config
@@ -38,27 +39,6 @@ THRESHOLD = float(os.getenv("DECISION_AI_THRESHOLD", "0.25"))
 ROOT = Path(__file__).resolve().parents[2]
 
 # ---------------------------------------------------------------------------
-# Artefacts
-# ---------------------------------------------------------------------------
-
-from decision_ai.models.predict import load_latest_artifacts, predict as _predict_df
-from functools import lru_cache
-
-# ---------------------------------------------------------------------------
-# Pickle compatibility shim (SBERTEncoder under __mp_main__)
-# ---------------------------------------------------------------------------
-import sys as _sys
-from decision_ai.features.engineer import SBERTEncoder as _SBERTEncoder  # noqa: E402
-
-if "__mp_main__" in _sys.modules and not hasattr(_sys.modules["__mp_main__"], "SBERTEncoder"):
-    _sys.modules["__mp_main__"].SBERTEncoder = _SBERTEncoder
-
-@lru_cache(maxsize=1)
-def _get_artifacts():
-    # Lazy‑load model and pipeline on first request to avoid startup failures
-    return load_latest_artifacts()
-
-# ---------------------------------------------------------------------------
 # FastAPI app
 # ---------------------------------------------------------------------------
 
@@ -68,6 +48,9 @@ app = FastAPI(
     description="Serviço de inferência para classificação de candidatos.",
 )
 
+# Modelo de similaridade semântica para cv_text × job_text
+cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+
 
 # ---------------------------------------------------------------------------
 # Schemas
@@ -75,18 +58,8 @@ app = FastAPI(
 
 
 class ApplicantIn(BaseModel):
-    cv_text: str = Field(..., description="Conteúdo (pt+en) do currículo")
+    cv_text: str = Field(..., description="Conteúdo do currículo")
     job_text: str | None = Field("", description="Descrição da vaga (opcional)")
-    base__tipo_contratacao: str | None = ""
-    profile__nivel_profissional: str | None = ""
-    profile__nivel_academico: str | None = ""
-    profile__nivel_ingles: str | None = ""
-    informacoes_profissionais__remuneracao: float | int | None = 0
-
-    # sanitize
-    @validator("cv_text", "job_text", pre=True, always=True)
-    def _to_str(cls, v):
-        return "" if v is None else str(v)
 
     # allow any extra keys to pass through to the DataFrame
     model_config = ConfigDict(extra="allow")
@@ -122,27 +95,16 @@ def require_api_key(request: Request):
 def predict_endpoint(payload: List[ApplicantIn]):
     if not payload:
         raise HTTPException(status_code=400, detail="Empty payload")
-
-    # dump **all** attributes, including extras, so the pipeline receives full feature set
-    df = pd.DataFrame(
-        [
-            ob.model_dump(
-                mode="python",
-                exclude_none=False,
-            )
-            for ob in payload
-        ]
-    )
-    # Lazy‑load artefacts
-    _model, _pipeline = _get_artifacts()
-
-    # Use internal predict() util (it will not reload artefacts because they're cached)
-    preds_df = _predict_df(df, threshold=THRESHOLD, batch_size=0)
-
-    return [
-        PredictionOut(proba=float(p), pred=int(y))
-        for p, y in zip(preds_df["proba"], preds_df["pred"])
-    ]
+    # Extrai pares de texto
+    pairs = [[item.cv_text, item.job_text or ""] for item in payload]
+    # Previsão de similaridade
+    scores = cross_encoder.predict(pairs)
+    # Converte scores em probabilidade via sigmoid e formata saída
+    results = []
+    for score in scores:
+        prob = 1.0 / (1.0 + math.exp(-float(score)))
+        results.append({"proba": prob, "pred": int(prob >= THRESHOLD)})
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +114,7 @@ def predict_endpoint(payload: List[ApplicantIn]):
 
 @app.get("/healthz", summary="Liveness probe")
 def health():
-    return {"status": "ok", "model_loaded": _get_artifacts.cache_info().hits > 0}
+    return {"status": "ok", "model_loaded": False}
 
 
 # ---------------------------------------------------------------------------
