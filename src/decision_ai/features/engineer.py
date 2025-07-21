@@ -152,8 +152,9 @@ class FeatureEngineer:
         self.pipeline: Pipeline | None = None
 
     def build_dataframe(self) -> pd.DataFrame:
+        logger.info("Carregando tabelas processadas…")
         dim_app, dim_job, fact = _load_tables()
-
+        
         # Harmonize key dtypes before merging (avoid int vs. object)
         for df_, col in (
             (fact, "applicant_id"),
@@ -184,14 +185,14 @@ class FeatureEngineer:
 
         # Concatenate and coerce to string to avoid NaNs / floats in text columns
         df["cv_text"] = (
-            df.get("cv_pt", "").fillna("").astype(str)
+            df.get("cv_pt", pd.Series("", index=df.index)).fillna("").astype(str)
             + " "
-            + df.get("cv_en", "").fillna("").astype(str)
+            + df.get("cv_en", pd.Series("", index=df.index)).fillna("").astype(str)
         )
         df["job_text"] = (
-            df.get("profile__principais_atividades", "").fillna("").astype(str)
+            df.get("profile__principais_atividades", pd.Series("", index=df.index)).fillna("").astype(str)
             + " "
-            + df.get("profile__competencia_tecnicas_e_comportamentais", "").fillna("").astype(str)
+            + df.get("profile__competencia_tecnicas_e_comportamentais", pd.Series("", index=df.index)).fillna("").astype(str)
         )
 
         # Ensure final text columns are pure strings (no floats)
@@ -254,6 +255,7 @@ class FeatureEngineer:
         export_text: bool = False,
     ):
         """Build dataframe, generate features and save artefacts."""
+        logger.info("Iniciando engenharia de features…")
         fe = FeatureEngineer()
         df = fe.build_dataframe()
         X = fe.fit_transform(df, tfidf_dim=tfidf_dim, svd_dim=svd_dim)
