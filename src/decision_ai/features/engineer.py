@@ -183,15 +183,14 @@ class FeatureEngineer:
         )
 
         # Concatenate and coerce to string to avoid NaNs / floats in text columns
-        df["cv_text"] = (
-            df.get("cv_pt", "").fillna("").astype(str)
-            + " "
-            + df.get("cv_en", "").fillna("").astype(str)
-        )
-        df["job_text"] = (
-            df.get("profile__principais_atividades", "").fillna("").astype(str)
-            + " "
-            + df.get("profile__competencia_tecnicas_e_comportamentais", "").fillna("").astype(str)
+        def _series_or_empty(column: str) -> pd.Series:
+            if column in df.columns:
+                return df[column].fillna("").astype(str)
+            return pd.Series([""] * len(df), index=df.index)
+
+        df["cv_text"] = _series_or_empty("cv_pt") + " " + _series_or_empty("cv_en")
+        df["job_text"] = _series_or_empty("profile__principais_atividades") + " " + _series_or_empty(
+            "profile__competencia_tecnicas_e_comportamentais"
         )
 
         # Ensure final text columns are pure strings (no floats)

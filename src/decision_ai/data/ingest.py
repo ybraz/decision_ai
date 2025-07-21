@@ -2,11 +2,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import subprocess
 from pathlib import Path
 from typing import Any, Dict
 
 import pandas as pd
+
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 
 def _sha256(value: str | None) -> str | None:
@@ -28,12 +35,14 @@ class Ingestor:
         path = self.raw_dir / name
         if not path.exists():
             raise FileNotFoundError(path)
+        logger.info("Loading %s", path)
         with open(path, encoding="utf-8") as fh:
             return json.load(fh)
 
     def _save_parquet(self, df: pd.DataFrame, name: str) -> None:
         self.out_dir.mkdir(parents=True, exist_ok=True)
         path = self.out_dir / name
+        logger.info("Saving %s (%d rows)", path.name, len(df))
         df.to_parquet(path, index=False)
         try:
             subprocess.run(["dvc", "add", str(path)], check=False)
@@ -42,6 +51,7 @@ class Ingestor:
 
     # ------------------------------------------------------------------
     def run(self) -> None:
+        logger.info("Starting ingestion")
         apps = self._load_json("applicants.json")
         jobs = self._load_json("vagas.json")
         prospects = self._load_json("prospects.json")
@@ -49,9 +59,11 @@ class Ingestor:
         self._process_applicants(apps)
         self._process_jobs(jobs)
         self._process_prospects(prospects)
+        logger.info("Ingestion finished")
 
     # ------------------------------------------------------------------
     def _process_applicants(self, data: Dict[str, Any]) -> None:
+        logger.info("Processing applicants")
         records = []
         for app_id, sections in data.items():
             info = sections.get("infos_basicas", {})
@@ -71,6 +83,7 @@ class Ingestor:
         self._save_parquet(df, "dim_applicant.parquet")
 
     def _process_jobs(self, data: Dict[str, Any]) -> None:
+        logger.info("Processing jobs")
         records = []
         for job_id, obj in data.items():
             info = obj.get("informacoes_basicas", {})
@@ -85,6 +98,7 @@ class Ingestor:
         self._save_parquet(df, "dim_job.parquet")
 
     def _process_prospects(self, data: Dict[str, Any]) -> None:
+        logger.info("Processing prospects")
         records = []
         for job_id, obj in data.items():
             for prospect in obj.get("prospects", []):

@@ -1,6 +1,6 @@
 # Decision AI Talent Match
 
-Bem-vindo(a)! Este repositório é sobre o trabalho final da pós-tech em machine learning engineering. O objetivo aqui é construir um sistema de recomendação de candidatos para vagas de emprego usando boas práticas de MLOps e segurança.
+Bem-vindo(a)! Este repositório contém o projeto final da pós‑tech em *Machine Learning Engineering*. Foi desenvolvido um sistema de recomendação de candidatos para vagas de emprego seguindo práticas robustas de MLOps e segurança da informação. Todo o fluxo está documentado para fins acadêmicos.
 
 ---
 
@@ -35,8 +35,10 @@ $ pip install --upgrade pip
 $ pip install -r requirements.txt
 ```
 3. **Ingestão de dados e Engenharia de Features**
-   
-   Os scripts estão localizados em `src/decision_ai/data/ingest.py` e `src/decision_ai/features/engineer.py`. Para executar, use:
+
+   O pipeline é dividido em duas etapas sequenciais. A primeira lê os arquivos JSON brutos e produz tabelas Parquet já com dados sensíveis ofuscados. Na sequência, a etapa de feature engineering consolida as tabelas e gera as matrizes de treino. Ambas mostram logs de progresso em tempo real.
+
+   Execute da seguinte forma:
 
    ```bash
    # Executa a etapa de ingestão (geralmente lê raw → processado)
@@ -78,6 +80,7 @@ $ python -m decision_ai.models.evaluate --threshold 0.25 --export reports/
 ```bash
 $ uvicorn decision_ai.api.main:app --reload
 ```
+Com isso a documentação interativa do FastAPI fica disponível em `http://localhost:8000/docs` para testes rápidos.
 
 Com esses passos a API ficará acessível em `http://localhost:8000/predict`.
 
