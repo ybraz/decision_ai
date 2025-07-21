@@ -6,7 +6,12 @@ Bem-vindo(a)! Este repositório é sobre o trabalho final da pós-tech em machin
 
 ## Visão Geral
 
-O projeto ingere dados de currículos e descrições de vagas para, em seguida, aplicar um **Cross-Encoder baseado em Transformer** que avalia diretamente o **grau de similaridade semântica** entre pares (CV, vaga). Utiliza-se o modelo `cross-encoder/ms-marco-MiniLM-L-6-v2` (Reimers & Gurevych, 2020), pré-treinado em tarefas de recuperação de informação sobre o corpus MS MARCO (Nguyen et al., 2016). Essa abordagem unificada dispensa a extração explícita de features estruturais e aproveita o poder contextual do Transformer para gerar scores contínuos em [0,1].
+O projeto ingere dados de currículos e descrições de vagas e gera *features* estruturadas a partir de três fontes:
+1. **Embeddings SBERT** extraídos do texto completo dos currículos;
+2. **TF‑IDF** da descrição das vagas;
+3. Campos categóricos e numéricos provenientes do banco de dados da Decision.
+
+Com essas representações é treinado um classificador **LightGBM**, otimizado via Optuna, capaz de estimar a probabilidade de contratação para cada candidato.
 
 ---
 
@@ -46,12 +51,7 @@ $ pip install -r requirements.txt
    ```
 4. **Treinamento**
 ```bash
-$ python -m decision_ai.models.train \
-       --model lgbm \
-       --trials 80 \
-       --timeout 10800 \
-       --calibrate sigmoid \
-       --n_jobs 4
+$ python -m decision_ai.models.train --trials 80
 ```
 
 5. **Avaliação do Modelo**
@@ -100,8 +100,8 @@ Apresento a seguir as decisões arquiteturais e as respectivas justificativas t�
     * **TF-IDF (Term Frequency-Inverse Document Frequency):** Utilizado para capturar a importância de termos específicos dentro dos documentos. Essa representação esparsa é particularmente eficaz para identificar palavras-chave distintivas, complementando a representação densa do SBERT.
 
 * **Modelo Preditivo:**
-    * **Cross-Encoder Transformer:** Adotado por sua capacidade de capturar **interações bidirecionais** entre tokens de texto de CV e de vaga, superando abordagens dual-encoder quando a granularidade semântica é crítica (Reimers & Gurevych, 2020). O modelo `ms-marco-MiniLM-L-6-v2` foi escolhido por seu **trade‑off** entre precisão e eficiência computacional, apresentando alto desempenho em tarefas de similaridade/recuperação.<br/>
-    * **Inferência por escore contínuo:** O Cross-Encoder retorna logits convertidos em probabilidades via **sigmoid**, permitindo ajustar o ponto de corte (`threshold`) conforme critérios de negócio de recall vs. precisão.
+    * **LightGBM (Light Gradient Boosting Machine):** escolhido por lidar bem com alta dimensionalidade e esparsidade, além de permitir treinamento rápido.
+    * **Otimização de Hiperparâmetros via Optuna:** garante melhor desempenho ao explorar automaticamente o espaço de configurações do LightGBM.
 
 * **Orquestração e Execução do Pipeline:**
     * **Pipeline Orquestrado com Prefect:** Uma versão do pipeline foi desenvolvida utilizando **Prefect** para orquestração de fluxos de trabalho. Esta escolha garante robustez, monitoramento em tempo real, tratamento de falhas e reexecução de tarefas, otimizando a governança e a confiabilidade das operações do sistema.
@@ -112,11 +112,9 @@ Apresento a seguir as decisões arquiteturais e as respectivas justificativas t�
     * **Gestão de Variáveis Secretas:** Variáveis e credenciais secretas são armazenadas externamente ao código-fonte, utilizando práticas recomendadas de segurança para evitar exposição e facilitar a gestão.
     * **Execução em Contêiner sem Usuário Root:** Os contêineres de execução são configurados para operar com privilégios mínimos (sem usuário root), reduzindo a superfície de ataque e mitigando riscos de segurança.
 
-* **Parâmetros de Treinamento e Otimização:** Os parâmetros cruciais para o processo de treinamento e otimização do modelo são:
-    * `--trials`: Define o número de iterações de busca que o Optuna executará para encontrar a melhor combinação de hiperparâmetros.
-    * `--timeout`: Estabelece um limite de tempo máximo para a execução total do processo de otimização, garantindo a conclusão dentro de um prazo predefinido.
-    * `--calibrate`: Habilita a calibração de probabilidades do modelo, ajustando as saídas para que representem probabilidades mais precisas e confiáveis.
-    * `--n_jobs`: Especifica o número de CPUs a serem utilizadas em paralelo durante o processo de otimização, acelerando significativamente o tempo de execução.
+* **Parâmetros de Treinamento e Otimização:**
+    * `--trials`: quantidade de iterações que o Optuna executará para buscar os melhores hiperparâmetros do LightGBM.
+    * `--threshold`: ponto de corte utilizado na etapa de avaliação para transformar probabilidades em classes.
 
 ---
 

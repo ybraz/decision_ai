@@ -1,6 +1,11 @@
 [
   {
     "cv_text": "Desenvolvedor ABAP Pleno com 6 anos de experiência em módulos FI/CO e MM. Especialista em criação de relatórios ALV, BAPIs, user‑exits e formulários SmartForms/Adobe. Responsável por otimizações de performance (runtime ↓40 %) e implementação de RFCs RESTful ABAP. Certificado SAP Certified Development Associate – ABAP with SAP NetWeaver 7.50. Metodologias ágeis (Scrum) e integração CI/CD com Git.",
-    "job_text": "Contratamos Desenvolvedor ABAP Pleno para atuar em manutenção evolutiva de SAP ECC (FI/CO, MM) e projetos de SAP S/4HANA. Requisitos: domínio de ABAP OO, criação de ALV, enhancement points, módulos de função, BAPIs e integrações RFC. Desejável experiência com SmartForms e CDS Views."
+    "job_text": "Contratamos Desenvolvedor ABAP Pleno para atuar em manutenção evolutiva de SAP ECC (FI/CO, MM) e projetos de SAP S/4HANA. Requisitos: domínio de ABAP OO, criação de ALV, enhancement points, módulos de função, BAPIs e integrações RFC. Desejável experiência com SmartForms e CDS Views.",
+    "base__tipo_contratacao": "CLT",
+    "profile__nivel_profissional": "Pleno",
+    "profile__nivel_academico": "Graduação completa",
+    "profile__nivel_ingles": "Intermediário",
+    "informacoes_profissionais__remuneracao": 8000
   }
 ]
