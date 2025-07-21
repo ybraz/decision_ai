@@ -16,15 +16,6 @@ Segurança
 * Autenticação **API‑Key** simples via header `X-API-Key`.
 * Carrega artefatos na inicialização (singleton).
 """
-
-"""
-NumPy-style Docstrings
-----------------------
-Module for the Decision AI REST API, serving prediction endpoints with API key authentication.
-"""
-
-from __future__ import annotations
-
 import os
 from pathlib import Path
 from typing import List

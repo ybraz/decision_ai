@@ -22,8 +22,6 @@ into numerical feature matrices suitable for machine learning. It integrates
 SBERT embeddings for CVs, TF-IDF for job descriptions, and one-hot plus
 numerical passthrough features, composed into a scikit-learn `Pipeline`.
 """
-from __future__ import annotations
-
 import logging
 import sys
 from datetime import datetime
