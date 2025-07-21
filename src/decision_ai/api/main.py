@@ -26,7 +26,7 @@ from typing import List
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 
 # ---------------------------------------------------------------------------
 # Config
@@ -77,11 +77,19 @@ app = FastAPI(
 class ApplicantIn(BaseModel):
     cv_text: str = Field(..., description="Conteúdo (pt+en) do currículo")
     job_text: str | None = Field("", description="Descrição da vaga (opcional)")
+    base__tipo_contratacao: str | None = ""
+    profile__nivel_profissional: str | None = ""
+    profile__nivel_academico: str | None = ""
+    profile__nivel_ingles: str | None = ""
+    informacoes_profissionais__remuneracao: float | int | None = 0
 
     # sanitize
     @validator("cv_text", "job_text", pre=True, always=True)
     def _to_str(cls, v):
         return "" if v is None else str(v)
+
+    # allow any extra keys to pass through to the DataFrame
+    model_config = ConfigDict(extra="allow")
 
 
 class PredictionOut(BaseModel):
@@ -115,7 +123,16 @@ def predict_endpoint(payload: List[ApplicantIn]):
     if not payload:
         raise HTTPException(status_code=400, detail="Empty payload")
 
-    df = pd.DataFrame([ob.dict() for ob in payload])
+    # dump **all** attributes, including extras, so the pipeline receives full feature set
+    df = pd.DataFrame(
+        [
+            ob.model_dump(
+                mode="python",
+                exclude_none=False,
+            )
+            for ob in payload
+        ]
+    )
     # Lazy‑load artefacts
     _model, _pipeline = _get_artifacts()
 

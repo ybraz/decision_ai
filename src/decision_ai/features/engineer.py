@@ -100,25 +100,35 @@ class SBERTEncoder:
 def build_pipeline(
     tfidf_dim: int = 2000,
     svd_dim: Optional[int] = 256,
-    struct_cols: Optional[list[str]] = None,
+    cat_cols: Optional[list[str]] = None,
+    num_cols: Optional[list[str]] = None,
 ) -> Pipeline:
-    if struct_cols is None:
-        struct_cols = [
+    if cat_cols is None:
+        cat_cols = [
             "base__tipo_contratacao",
             "profile__nivel_profissional",
             "profile__nivel_academico",
+            "profile__nivel_ingles",
         ]
+    if num_cols is None:
+        num_cols = ["informacoes_profissionais__remuneracao"]
 
-    # scikit‑learn ≥1.4 only accepts stop_words=None or "english"
-    # Use None to avoid InvalidParameterError; plug a custom PT stoplist later if desired.
-    tfidf = TfidfVectorizer(max_features=tfidf_dim, stop_words=None)
+    # Use tokens em nível de palavra em vez de trigramas de caracteres
+    tfidf = TfidfVectorizer(
+        analyzer="word",
+        ngram_range=(1, 2),      # unigram + bigram
+        max_features=tfidf_dim,
+        min_df=3,                # ignora ruído raro
+        stop_words=None,         # pt+en misto; custom stoplist pode ser plugada depois
+    )
     sbert = SBERTEncoder()
 
     coltrans = ColumnTransformer(
         [
             ("tfidf_job", tfidf, "job_text"),
             ("sbert_cv", sbert, "cv_text"),
-            ("onehot_struct", OneHotEncoder(handle_unknown="ignore"), struct_cols),
+            ("onehot_cat", OneHotEncoder(handle_unknown="ignore"), cat_cols),
+            ("num_passthrough", "passthrough", num_cols),
         ],
         sparse_threshold=0.3,
     )
@@ -156,6 +166,17 @@ class FeatureEngineer:
             .merge(dim_job, on="job_id", how="left")
         )
 
+        # ── column hygiene ───────────────────────────────────────────────
+        # Replace spaces and slashes with underscores to stay consistent
+        # with the _norm_key() convention applied during ingestion.
+        df.columns = (
+            df.columns.str.normalize("NFKD")
+            .str.encode("ascii", "ignore")
+            .str.decode("ascii")
+            .str.replace(r"[ /]", "_", regex=True)
+            .str.lower()
+        )
+
         # Concatenate and coerce to string to avoid NaNs / floats in text columns
         df["cv_text"] = (
             df.get("cv_pt", "").fillna("").astype(str)
@@ -172,22 +193,39 @@ class FeatureEngineer:
         df["cv_text"] = df["cv_text"].astype(str)
         df["job_text"] = df["job_text"].astype(str)
 
+        if "informacoes_profissionais__remuneracao" in df.columns:
+            df["informacoes_profissionais__remuneracao"] = (
+                pd.to_numeric(df["informacoes_profissionais__remuneracao"], errors="coerce")
+                .fillna(0.0)
+            )
+
         logger.info("DataFrame pronto: %d linhas | positivos=%d", len(df), df["label"].sum())
         return df
 
     def fit_transform(self, df: pd.DataFrame, tfidf_dim=2000, svd_dim: Optional[int] = 256):
-        # Determine which structured columns actually exist
-        default_struct = [
+        # Determine which categorical and numerical columns actually exist
+        cat_default = [
             "base__tipo_contratacao",
             "profile__nivel_profissional",
             "profile__nivel_academico",
+            "profile__nivel_ingles",
         ]
-        struct_cols = [c for c in default_struct if c in df.columns]
-        missing = set(default_struct) - set(struct_cols)
-        if missing:
-            logger.warning("Colunas estruturais ausentes e ignoradas: %s", ", ".join(missing))
+        num_default = ["informacoes_profissionais__remuneracao"]
 
-        self.pipeline = build_pipeline(tfidf_dim, svd_dim, struct_cols=struct_cols)
+        cat_cols = [c for c in cat_default if c in df.columns]
+        num_cols = [c for c in num_default if c in df.columns]
+
+        for missing_cat in set(cat_default) - set(cat_cols):
+            logger.warning("Coluna categórica ausente: %s (será ignorada)", missing_cat)
+        for missing_num in set(num_default) - set(num_cols):
+            logger.warning("Coluna numérica ausente: %s (será ignorada)", missing_num)
+
+        self.pipeline = build_pipeline(
+            tfidf_dim,
+            svd_dim,
+            cat_cols=cat_cols,
+            num_cols=num_cols,
+        )
         logger.info("Ajustando pipeline de features…")
         X = self.pipeline.fit_transform(df)
         return X

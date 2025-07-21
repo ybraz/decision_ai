@@ -45,14 +45,35 @@ $ python -m decision_ai.models.train \
        --calibrate sigmoid \
        --n_jobs 4
 ```
-5. **Servir localmente**
+
+5. **Avaliação do Modelo**
+```bash
+# avaliação rápida com threshold padrão (0.50)
+$ python -m decision_ai.models.evaluate
+
+# avaliando com threshold customizado (ex.: 0.25)
+$ python -m decision_ai.models.evaluate --threshold 0.25
+
+# salvando relatórios e gráficos em diretório específico
+$ python -m decision_ai.models.evaluate --threshold 0.25 --export reports/
+```
+
+
+> **Interpretação do *threshold***  
+> A escolha do ponto de corte é agora uma **decisão de negócio**.  
+> * **Mais *recall*** (não perder talentos): use `--threshold 0.25` – o modelo captura ~80 % dos candidatos contratáveis, mas com ~15 % de falsos‑positivos.  
+> * **Menos ruído** para o time de seleção: use `--threshold 0.50` (ou até `0.60`) – quase nenhum falso‑positivo, porém ~30 % dos bons perfis ficam de fora.  
+> Ajuste conforme o trade‑off entre volume de triagem manual e risco de perder bons perfis.
+
+
+6. **Servir localmente**
 ```bash
 $ uvicorn decision_ai.api.main:app --reload
 ```
 
 Com esses passos a API ficará acessível em `http://localhost:8000/predict`.
 
-6. **Testar a API**
+7. **Testar a API**
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
@@ -117,4 +138,3 @@ decision_ai/
 ---
 
 Espero que este README facilite a avaliação do projeto. Qualquer dúvida ou sugestão estou à disposição!
-

@@ -13,10 +13,10 @@ A orquestração é implementada de duas formas:
 * **Execução sequencial** simples para rodar localmente ou em CI
 
 Uso (Prefect):
-    $ poetry run python -m decision_ai.pipeline run-prefect
+    $ python -m decision_ai.pipeline run-prefect
 
 Uso (sequencial rápido):
-    $ poetry run python -m decision_ai.pipeline run-local
+    $ python -m decision_ai.pipeline run-local
 """
 from __future__ import annotations
 
