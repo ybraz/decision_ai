@@ -29,11 +29,21 @@ $ python -m venv .venv && source .venv/bin/activate
 $ pip install --upgrade pip
 $ pip install -r requirements.txt
 ```
-3. **Ingestão e features**
-```bash
-$ python -m decision_ai.data.ingest
-$ python -m decision_ai.features.engineer
-```
+3. **Ingestão de dados e Engenharia de Features**
+   
+   Os scripts estão localizados em `src/decision_ai/data/ingest.py` e `src/decision_ai/features/engineer.py`. Para executar, use:
+
+   ```bash
+   # Executa a etapa de ingestão (geralmente lê raw → processado)
+   python -m decision_ai.data.ingest \
+       --raw-dir src/data/raw \
+       --out-dir src/data/processed
+
+   # Executa a engenharia de features (TF-IDF + SBERT + pipeline enxuto)
+   python -m decision_ai.features.engineer \
+       --tfidf-dim 30000 \
+       --svd-dim 512
+   ```
 4. **Treinamento**
 ```bash
 $ python -m decision_ai.models.train \
