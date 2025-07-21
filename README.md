@@ -42,13 +42,15 @@ $ pip install -r requirements.txt
    # Executa a etapa de ingestão (geralmente lê raw → processado)
    python -m decision_ai.data.ingest \
        --raw-dir src/data/raw \
-       --out-dir src/data/processed
+       --out-dir data/processed
 
    # Executa a engenharia de features (TF-IDF + SBERT + pipeline enxuto)
    python -m decision_ai.features.engineer \
        --tfidf-dim 30000 \
        --svd-dim 512
    ```
+   A etapa de engenharia de features procura automaticamente os arquivos
+   processados no diretório `data/processed`.
 4. **Treinamento**
 ```bash
 $ python -m decision_ai.models.train --trials 80
